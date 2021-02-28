@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Todo:
+# -- use timestamp in name
+# -- delete older than X
+# -- logic for keeping a single old one
+
 import tarfile
 import time
 
@@ -23,7 +28,7 @@ while True:
     time.sleep(PERIOD)
 
     tar = tarfile.open(DST_DIR+'archive'+str(i)+'tar.gz', mode='w:gz')
-    tar.add(DST_DIR)
+    tar.add(SRC_DIR)
     tar.close
 
     print(i)
