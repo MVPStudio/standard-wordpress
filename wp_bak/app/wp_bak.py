@@ -47,6 +47,7 @@ while True:
     tar.add(SRC_DIR)
     tar.close
 
+    # Delete the archves that are too old
     archives = list(filter(lambda x: fnmatch(x, 'archive*.tar.gz'), os.listdir(DST_DIR)))
     for archive in archives:
         # Get string representation of archive date
