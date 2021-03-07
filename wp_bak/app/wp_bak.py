@@ -91,6 +91,7 @@ def delete_too_old(dir, now, cutoff):
     for archive in archives:
         if filename2age(now, archive) >= cutoff:
             # Delete the file
+            log.info('Deleting aged archive - %s', archive)
             dir.joinpath(archive).unlink()
 
 def main():
