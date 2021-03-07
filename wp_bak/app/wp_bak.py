@@ -3,7 +3,7 @@
 # docker build -t colindavey/wp_bak:alpha .
 # docker run -v `pwd`/src:/home/mvp/app/src -v `pwd`/dst:/home/mvp/app/dst -t colindavey/wp_bak:alpha
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from fnmatch import fnmatch
 import logging
 import os
@@ -22,18 +22,13 @@ DST_DIR=Path('dst')
 SHORT_DIR=DST_DIR.joinpath('shorts')
 LONG_DIR=DST_DIR.joinpath('longs')
 
-MINUTE = 60
-HOUR = 60 * MINUTE
-DAY = 24 * HOUR
-WEEK = 7 * DAY
-
 DATE_TIME_FORMAT = "%Y-%m-%d-%H-%M-%S"
 
 # Duration between backups in seconds
 # Actual value
-# SHORT_DURATION = DAY
+# SHORT_DURATION = timedelta(days=1)
 # Value for testing
-SHORT_DURATION = 1
+SHORT_DURATION = timedelta(seconds=1)
 # Delete everything in the shorts folder older than this
 SHORT_DURATION_TO_KEEP = 7 * SHORT_DURATION
 
@@ -64,10 +59,9 @@ def filename2age(now, filename):
         The name of file to calculate age of.
     """
     # Get string representation of archive date
-    date = filename.replace('archive', '').replace('.tar.gz', '')
+    date_str = filename.replace('archive', '').replace('.tar.gz', '')
     # Get age from archive-date string
-    age = now - datetime.strptime(date, DATE_TIME_FORMAT)
-    return (age.days * DAY) + age.seconds
+    return now - datetime.strptime(date_str, DATE_TIME_FORMAT)
 
 def get_archive_list(dir):
     """Returns a sorted list of archive files from the specified directory.
@@ -90,7 +84,7 @@ def delete_too_old(dir, now, cutoff):
     now : datetime object
         The time to use as "now" for calculating item's age.
 
-    cutoff : integer, number of seconds
+    cutoff : timedelta object
         The age, older than which, we delete the file.
     """
     archives = get_archive_list(dir)
@@ -112,7 +106,7 @@ def main():
     rep = 0
 
     while True:
-        time.sleep(SHORT_DURATION)
+        time.sleep(SHORT_DURATION.total_seconds())
         now = datetime.now()
         timestamp = now.strftime(DATE_TIME_FORMAT)
 
@@ -132,7 +126,7 @@ def main():
             shutil.copy(tar_filename, LONG_DIR)
         else:
             long_archives = get_archive_list(LONG_DIR)
-            # Update long-term archive if newest one is gt duration
+            # Update long-term archive if newest one is older than long duration
             if filename2age(now, long_archives[0]) >= LONG_DURATION:
                 shutil.copy(tar_filename, LONG_DIR)
                 delete_too_old(LONG_DIR, now, LONG_DURATION_TO_KEEP)
