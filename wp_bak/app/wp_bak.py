@@ -7,6 +7,7 @@ from datetime import datetime
 from fnmatch import fnmatch
 import logging
 import os
+from pathlib import Path
 import shutil
 import sys
 import tarfile
@@ -16,10 +17,10 @@ import time
 # CONSTANTS
 #############################
 
-SRC_DIR='src/'
-DST_DIR='dst/'
-SHORT_DIR=DST_DIR+'shorts/'
-LONG_DIR=DST_DIR+'longs/'
+SRC_DIR=Path('src')
+DST_DIR=Path('dst')
+SHORT_DIR=DST_DIR.joinpath('shorts')
+LONG_DIR=DST_DIR.joinpath('longs')
 
 MINUTE = 60
 HOUR = 60 * MINUTE
@@ -50,17 +51,6 @@ log = logging.getLogger(__name__)
 #############################
 # FUNCTIONS
 #############################
-
-def mkdir_if_not_exist(dir):
-    """Makes a directory if it doesn't exist.
-
-    Parameters
-    ----------
-    dir : string, name of directory
-        The directory to make.
-    """
-    if not os.path.exists(dir):
-        os.makedirs(dir)
 
 def filename2age(now, filename):
     """Calculcates the age of a file, in seconds from the files name.
@@ -106,7 +96,8 @@ def delete_too_old(dir, now, cutoff):
     archives = get_archive_list(dir)
     for archive in archives:
         if filename2age(now, archive) >= cutoff:
-            os.remove(dir + archive)
+            # Delete the file
+            dir.joinpath(archive).unlink()
 
 def main():
     """Wakes up every day and makes a backup in the short-term directory. 
@@ -116,8 +107,8 @@ def main():
     The numbers stated above are examples, and are settable by editing the 
     constants above. 
     """
-    mkdir_if_not_exist(SHORT_DIR)
-    mkdir_if_not_exist(LONG_DIR)
+    SHORT_DIR.mkdir(parents=True, exist_ok=True)
+    LONG_DIR.mkdir(parents=True, exist_ok=True)
     rep = 0
 
     while True:
@@ -127,7 +118,7 @@ def main():
 
         # Archive the directory
         log.info('Archiving %s', timestamp)
-        tar_filename = SHORT_DIR+'archive'+timestamp+'.tar.gz'
+        tar_filename = SHORT_DIR.joinpath('archive'+timestamp+'.tar.gz')
         tar = tarfile.open(tar_filename, mode='w:gz')
         tar.add(SRC_DIR)
         tar.close
