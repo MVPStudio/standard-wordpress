@@ -41,8 +41,8 @@ then
    echo "Setting up WordPress"
    # TODO: I'm not sure if we want to do this or not.
    sudo -u www-data -- php /usr/local/bin/wp-cli.phar core install --url=$SITE_URL \
-      --admin_user=$WP_ADMIN_USER --admin_password=$WP_ADMIN_PASS --admin_email=$WP_ADMIN_EMAIL \
-      --title=$WP_TITLE 
+      --admin_user=$WP_ADMIN_USER --admin_password="$WP_ADMIN_PASS" \
+      --admin_email="$WP_ADMIN_EMAIL" --title="$WP_TITLE"
    echo "Done with base WordPress setup."
 
    # Now install some plugins

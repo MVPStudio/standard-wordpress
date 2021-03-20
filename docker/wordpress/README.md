@@ -21,7 +21,7 @@ some setup accordingly. The very last line of the script then executes the comma
 setup the command line argument is `apache2-foreground` which runs the Apache web server in the foreground thus starting
 the main app.
 
-Our Dockerfile moves this entrypoint to `wp-setup.sh` and removes the final line (the one that would execute the command
-line argument and start apache). This let's us call the WordPress entrypoint script exactly as written (making upgrades
-easier) but then gives us a chance to do other things like install plugins before starting the web server. We then have
-our own `docker-entrypoint.sh` script which call `wp-setup.sh` and that is what is set as the container `ENTRYPOINT`.
+We have our own entrypoint script, `docker-entrypoint.sh`. That script copies the original `wp-setup.sh` but the final
+line (the one that would execute the command line argument and start apache). This let's us call the WordPress
+entrypoint script exactly as written (making upgrades easier) but then gives us a chance to do other things like install
+plugins before starting the web server.
