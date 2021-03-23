@@ -8,8 +8,7 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Install the WP CLI (https://wp-cli.org/#installing)
 RUN curl -o /usr/local/bin/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-   apt-get update && apt-get install -y sudo && \
-   echo "LoadModule headers_module /usr/lib/apache2/modules/mod_headers.so" > /etc/apache2/mods-enabled/headers.load
+   apt-get update && apt-get install -y sudo
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD []
