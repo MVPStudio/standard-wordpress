@@ -41,7 +41,7 @@ spec:
 ```
 
 Note that this is a normal configuration file except that the `namespace` is given as `{{ namespace }}`. This will be
-replaced by the actual namespace when the [setup script](#setup-script) is run.
+replaced by the actual namespace when the [setup script](#setup-script.py) is run.
 
 # Setup Script
 
