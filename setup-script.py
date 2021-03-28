@@ -1,8 +1,8 @@
 from pybars import Compiler
 import os
 
-DB_MANIFEST_TEMPLATE = 'templates/mariadb.tmpl'
-DB_MANIFEST = 'mariadb.yaml'
+DB_MANIFEST_TEMPLATE = 'k8s/running/templates/mariadb.tmpl'
+DB_MANIFEST = 'k8s/running/mariadb.yaml'
 
 compiler = Compiler()
 

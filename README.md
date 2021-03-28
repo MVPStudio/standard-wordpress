@@ -45,7 +45,22 @@ replaced by the actual namespace when the [setup script](#setup-script.py) is ru
 
 # Setup Script
 
-Details to come.
+Set up your MariaDB password using Kubernetes secrets.
+
+```bash
+kubectl create secret generic mdbsecrets \
+  --from-literal=password='eightefferrorsgalore'
+  --from-literal=user-password='eightefferrorsgalore'
+```
+
+Run setup-script.py to select a username in which MariaDB will be deployed.
+
+```
+python setup-script.py
+```
+
+TODO: Have the script apply the mariadb manifest file.
+
 
 # Runs from Volume Mount
 
