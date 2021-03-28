@@ -3,6 +3,31 @@
 This is our standard WordPress setup for Kubernetes. People who want to run WordPress on MVPStudio infrastructure can
 simply fork this repo and run a few `kubectl` commands to get a running WordPress system.
 
+# Quick Start
+
+TODO: Instructions here for how to get up and running as quick as possible.
+
+## Redirects
+
+WordPress _really_ wants to redirect the user to whatever URL was set as `$WP_HOME`. That's often helpful for SEO and
+such but it makes it hard for one of the most common patterns: you first set up a site to replace an existing site and
+then you make it live. The [official instructions](https://wordpress.org/support/article/moving-wordpress/) to change
+the URL of a WordPress site require dumping the entire DB, then running a search-and-replace on it to replace all the
+places where the initial URL got saved to the database, and then reloading the DB. Instead, it'd be nice to temporarily
+disable URL redirects. To that end our `docker-entrypoint.sh` script adds the following to your `wp-config.php`:
+
+```php
+define( 'WP_HOME', "http://" . $_SERVER["SERVER_NAME"] );
+define( 'WP_SITEURL', WP_HOME . "/" );
+```
+
+This disables the redirects which allows you to edit the site. Before you go live you might want to remove them. To do
+so you can find them in `wp-config.php` right before the line that says:
+
+```php
+/* That's all, stop editing! Happy publishing. */
+```
+
 # Repo Structure
 
 The repo is has 2 main subdirectories:
