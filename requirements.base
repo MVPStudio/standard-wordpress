@@ -1,0 +1,7 @@
+# This file lists the actual, direct dependencies of our setup-script.py.
+# If you have another _direct_ dependency add it here, install it into your
+# venv and then `pip freeze` to generate a new requirements.txt.
+#
+# If you aren't developing but just need to get setup-script.py running
+# use the frozen requirements.txt file instead.
+pybars3
