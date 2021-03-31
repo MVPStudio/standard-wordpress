@@ -1,10 +1,10 @@
-from pybars import Compiler
-from pathlib import Path
-from typing import Dict, List
 import argparse
-import io
 import logging
+from pathlib import Path
 import shutil
+from typing import Dict, List
+
+from pybars import Compiler
 
 
 THIS_DIR = Path(__file__).parent
@@ -30,10 +30,13 @@ def parse_args() -> argparse.Namespace:
 
 def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
     """Given template_vars, a dict from template variable name to the value for that variable, recursively find all
-    files under K8_DIR, expand them as handlebars templates if they have a .tmpl extension, and copy them to the same
-    relative location in dest. Files found under K8_DIR that do not end with .tmpl are copied unchanged to dest.
+    files under K8_DIR, expand them as handlebars templates if they have a .tmpl.yaml extension, and copy them to the
+    same relative location in dest.  Files found under K8_DIR that do not end with .tmpl.yaml are copied unchanged to
+    dest.
     """
     compiler = Compiler()
+
+    TEMPLATE_SUFFIX = '.tmpl.yaml'
 
     # As we walk cur_dir we'll find additional subdirectories which we'll push here to be explored in later iterations.
     to_explore: List[Path] = [K8_DIR.absolute()]
@@ -46,8 +49,8 @@ def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
             else:
                 dest_file = dest / file_or_dir.relative_to(K8_DIR)
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
-                if file_or_dir.suffix == '.tmpl':
-                    dest_file = dest_file.parent / (dest_file.stem + '.yml')
+                if str(file_or_dir).endswith(TEMPLATE_SUFFIX):
+                    dest_file = dest_file.parent / (str(dest_file)[:-len(TEMPLATE_SUFFIX)] + '.yml')
                     log.info('Expanding template %s to %s', file_or_dir, dest_file)
                     with open(file_or_dir, 'rt', encoding='utf-8') as inf:
                         contents = inf.read()
