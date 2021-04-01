@@ -70,6 +70,15 @@ replaced by the actual namespace when the [setup script](#setup-script.py) is ru
 
 # Setup Script
 
+In order to run the setup script you will need a few packages installed. To likely want to install them into a
+[venv](https://docs.python.org/3/tutorial/venv.html) and install the required files there:
+
+```bash
+$ python3 -m venv venv
+$ source venv/bin/activate
+(venv) $ pip install -r requirements.txt
+```
+
 Set up your MariaDB password using Kubernetes secrets.
 
 ```bash
