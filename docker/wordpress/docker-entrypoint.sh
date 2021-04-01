@@ -50,6 +50,13 @@ then
    # Note we don't run as root or we could end up copying files and things we can't read or manage.
    sudo -u www-data -- php /usr/local/bin/wp-cli.phar plugin install wordfence --activate
    echo "Done installing wordfence."
+
+   # This prevents the URL redirect so you can setup the site without needing it to be live.
+   # See the REAMDE for details. You probably want to remove the configs set here before going
+   # live. Again, see the README.
+   sudo -u www-data -- php /usr/local/bin/wp-cli.phar config set WP_HOME '"http://" . $_SERVER["SERVER_NAME"]' --raw
+   sudo -u www-data -- php /usr/local/bin/wp-cli.phar config set WP_SITEURL 'WP_HOME . "/"' --raw
 fi
+
 
 apache2-foreground
