@@ -65,9 +65,9 @@ spec:
                 name: wpsecrets
                 key: admin-password
         - name: WP_TITLE
-          value: "{{ site-title }}"
+          value: "{{{ site-title }}}"
         - name: SITE_URL
-          value: "{{ site-url }}"
+          value: "{{{ site-url }}}"
         ports:
         - containerPort: 80
           name: wordpress

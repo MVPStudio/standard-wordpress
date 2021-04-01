@@ -1,8 +1,10 @@
 import argparse
 import logging
 from pathlib import Path
+import secrets
 import shutil
-from typing import Dict, List
+import string
+from typing import Dict, List, Any
 
 from pybars import Compiler
 
@@ -22,10 +24,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-d', '--dry_run', action='store_true', default=False,
                         help='If given the manifest files will not be applied to the cluster, they will just '
                         'be generated to --out.')
-    parser.add_argument('-n', '--namespace', type=str, required=True,
+    parser.add_argument('-n', '--namespace', type=str,
                         help='The Kubernetes namespace to which the WordPress site will be deployed.')
+    parser.add_argument('-t', '--title', type=str, 
+                        help='The title for your WordPress site')
+    parser.add_argument('-u', '--url', type=str,
+                        help='The URL that will be used for your production WordPress site, including the '
+                        'protocol (e.g. "https://my.site.com").')
 
-    return parser.parse_args()
+
+    parsed = parser.parse_args()
+
+    prompt_if_missing = ['namespace', 'title', 'url']
+
+    parsed_dict = vars(parsed)
+    for opt in prompt_if_missing:
+        if opt not in parsed_dict or parsed_dict[opt] is None:
+            val = input(opt + ': ')
+            setattr(parsed, opt, val)
+
+    return parsed
+
+
+def gen_password() -> str:
+    """Generates a secure, random password and returns it."""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(8))
 
 
 def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
@@ -66,7 +90,9 @@ def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
 def main() -> None:
     args = parse_args()
     template_vars = {
-        'namespace': args.namespace
+        'namespace': args.namespace,
+        'site-title': args.title,
+        'site-url': args.url
     }
     generate_manifests(template_vars, args.out)
 
