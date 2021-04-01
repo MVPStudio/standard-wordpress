@@ -41,11 +41,26 @@ spec:
 ```
 
 Note that this is a normal configuration file except that the `namespace` is given as `{{ namespace }}`. This will be
-replaced by the actual namespace when the [setup script](#setup-script) is run.
+replaced by the actual namespace when the [setup script](#setup-script.py) is run.
 
 # Setup Script
 
-Details to come.
+Set up your MariaDB password using Kubernetes secrets.
+
+```bash
+kubectl create secret generic mdbsecrets \
+  --from-literal=password='eightefferrorsgalore'
+  --from-literal=user-password='eightefferrorsgalore'
+```
+
+Run setup-script.py to generate all the kube manifest files and have them pushed to the cluster.
+
+```
+python setup-script.py
+```
+
+TODO: Have the script apply the mariadb manifest file.
+
 
 # Runs from Volume Mount
 
