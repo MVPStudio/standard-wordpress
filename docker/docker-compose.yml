@@ -1,0 +1,38 @@
+# This is a simple docker-compose file that can be used for local testing. It starts the wordpress image and the MariaDb
+# image and sets them up to talk to each other. There are some environment varables you can set before running
+# "docker-compose up" to override some of the defaults here:
+#
+# * WP_TITLE: the title of the Wordpress site.
+# * SITE_URL: the url of the site. Wordpress uses this in a variety of ways. This is passed to the --url option of the
+#   WP cli which sets the site address and wordpress address given this value.
+#
+# Wordpress will then be available at localhost:8888. I also expose the MySQL DB at 3306 in case you want to connnect to that directly.
+version: "3.3"
+services:
+   maria:
+      image: mariadb:10.3     
+      restart: always
+      environment:
+         - MYSQL_ROOT_PASSWORD=admin
+         - MYSQL_DATABASE=wordpress
+         - MYSQL_USER=wordpress
+         - MYSQL_PASSWORD=wordpress
+      ports:
+         - "3306:3306"
+   wordpress:
+      depends_on:
+         - maria
+      build: ./wordpress
+      restart: always
+      environment:
+         - WORDPRESS_DB_HOST=maria:3306
+         - WORDPRESS_DB_USER=wordpress
+         - WORDPRESS_DB_PASSWORD=wordpress
+         - WP_ADMIN_USER=admin
+         - WP_ADMIN_PASS=admin
+         - SITE_URL=${SITE_URLS:-http://some_fake_site.com}
+         - WP_TITLE=${WP_TITLE:-A Site}
+         # WP_ADMIN_EMAIL is required or their startup script fails
+         - WP_ADMIN_EMAIL=fake@nowhere.com
+      ports:
+         - "8888:80"
