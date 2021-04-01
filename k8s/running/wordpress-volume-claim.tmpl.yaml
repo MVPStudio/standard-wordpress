@@ -1,0 +1,17 @@
+# We want to use the pre-provisioned PersistentVolume so we can share it between WordPress and the backup pod. That
+# means we can't do a volumeClaimTemplates because that would generate a new PV. So we separate out the volume claim
+# template here and then use that in our WordPress deployment.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+   name: wordpress-volume-claim
+   namespace: "{{ namespace }}"
+spec:
+   resources:
+      requests:
+         storage: 10Gi
+   accessModes:
+      - ReadWriteMany
+   selector:
+      matchLabels:
+         name: wordpress-volume
