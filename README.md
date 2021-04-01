@@ -53,7 +53,7 @@ kubectl create secret generic mdbsecrets \
   --from-literal=user-password='eightefferrorsgalore'
 ```
 
-Run setup-script.py to select a username in which MariaDB will be deployed.
+Run setup-script.py to generate all the kube manifest files and have them pushed to the cluster.
 
 ```
 python setup-script.py
