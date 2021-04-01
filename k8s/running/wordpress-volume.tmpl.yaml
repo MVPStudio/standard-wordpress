@@ -1,0 +1,12 @@
+# We need to explicitly create and reserve the presistent volume for wordpress because both it and the backup pod will
+# need to share it. The mode is therefore ReadWriteMany but only wordpress will mount it with write access.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wordpress-volume
+  namespace: "{{ namespace }}"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
