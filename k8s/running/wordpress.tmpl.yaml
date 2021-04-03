@@ -37,7 +37,7 @@ spec:
     spec:
       containers:
       - name: wordpress
-        image: mvpstudio/standard-wordpress:v005
+        image: mvpstudio/standard-wordpress:v006
         resources:
           limits:
             cpu: 0.5

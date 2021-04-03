@@ -40,12 +40,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-p', '--project_name', type=str, default=None,
                         help='A "project" name to be used in Kubernetes config files and such as an indentifier. By '
                         'default this will be the hostname with characters like `.` replaced by `-`')
-    parser.add_argument('-l', '--live', action='store_true', default=False,
-                        help='If DNS entries have already been setup for --hostname to point to MVP studio '
-                        'infrastructure then set this to true. Otherwise it is false. When true we set up the SSL '
-                        'certificates for the --hostname but since that will fail if the DNS has not yet been set up '
-                        'this is false by default.')
-
 
     parsed = parser.parse_args()
 
@@ -182,7 +176,6 @@ def main() -> None:
         'site-title': args.title,
         'hostname': args.hostname,
         'project-name': args.project_name,
-        'live': args.live
     }
     generate_manifests(template_vars, args.out)
 

@@ -5,28 +5,41 @@ simply fork this repo and run a few `kubectl` commands to get a running WordPres
 
 # Quick Start
 
-TODO: Instructions here for how to get up and running as quick as possible.
+In order to get started you will need to run the `setup-script.py`. But first you will need a few packages installed. To
+likely want to install them into a [venv](https://docs.python.org/3/tutorial/venv.html) and install the required files
+there:
+
+```bash
+$ python3 -m venv venv
+$ source venv/bin/activate
+(venv) $ pip install -r requirements.txt
+```
+
+Run setup-script.py to generate all the kube manifest files and have them pushed to the cluster. The script has some
+required command line arguments to tell it things like the `namespace` for your project, the URL for your site, etc. You
+can see all the arguments by running it with `--help`:
+
+```
+python setup-script.py --help
+```
+
+All of the generated files, including the `maintenance` once that you might want to `kubectl apply` later (see below)
+get put into the directory you specified in your `--out` argument to the script. You will want to save these for later
+use; it's probably best to put them in a `git` repository somewhere. The `routing.yaml` script in the root of your
+`--out` directory needs to be given to an MVP Studio administrator so that routing can be set up.
 
 ## Redirects
 
-WordPress _really_ wants to redirect the user to whatever URL was set as `$WP_HOME`. That's often helpful for SEO and
-such but it makes it hard for one of the most common patterns: you first set up a site to replace an existing site and
-then you make it live. The [official instructions](https://wordpress.org/support/article/moving-wordpress/) to change
-the URL of a WordPress site require dumping the entire DB, then running a search-and-replace on it to replace all the
-places where the initial URL got saved to the database, and then reloading the DB. Instead, it'd be nice to temporarily
-disable URL redirects. To that end our `docker-entrypoint.sh` script adds the following to your `wp-config.php`:
+WordPress _really_ wants to redirect the user to whatever URL was set as `$WP_HOME` (this corresponds to the
+`--hostname` argument to `setup-script.py`). That's often helpful for SEO and such but it makes it hard for one of the
+most common patterns: you first set up a site to replace an existing site and then you make it live.
 
-```php
-define( 'WP_HOME', "http://" . $_SERVER["SERVER_NAME"] );
-define( 'WP_SITEURL', WP_HOME . "/" );
-```
-
-This disables the redirects which allows you to edit the site. Before you go live you might want to remove them. To do
-so you can find them in `wp-config.php` right before the line that says:
-
-```php
-/* That's all, stop editing! Happy publishing. */
-```
+The [official instructions](https://wordpress.org/support/article/moving-wordpress/) to change the URL of a WordPress
+site require dumping the entire DB, then running a search-and-replace on it to replace all the places where the initial
+URL got saved to the database, and then reloading the DB. Instead, it'd be nice to temporarily disable URL redirects,
+however everything I tried to make that work failed so **it's best to try to deploy your site with the final URL**. If
+you can't do that then run the setup script with a temporary URL and follow the migration instructions listed above when
+it's time to change the DNS entry and make the site live.
 
 # Repo Structure
 
@@ -74,34 +87,6 @@ replaced by the actual namespace when the [setup script](#setup-script.py) is ru
 
 The available handlebars variables are:
 TODO: finish this!
-
-# Setup Script
-
-In order to run the setup script you will need a few packages installed. To likely want to install them into a
-[venv](https://docs.python.org/3/tutorial/venv.html) and install the required files there:
-
-```bash
-$ python3 -m venv venv
-$ source venv/bin/activate
-(venv) $ pip install -r requirements.txt
-```
-
-Set up your MariaDB password using Kubernetes secrets.
-
-```bash
-kubectl create secret generic mdbsecrets \
-  --from-literal=password='eightefferrorsgalore'
-  --from-literal=user-password='eightefferrorsgalore'
-```
-
-Run setup-script.py to generate all the kube manifest files and have them pushed to the cluster.
-
-```
-python setup-script.py
-```
-
-TODO: Have the script apply the mariadb manifest file.
-
 
 # Runs from Volume Mount
 
