@@ -37,14 +37,14 @@ spec:
     spec:
       containers:
       - name: wordpress
-        image: mvpstudio/standard-wordpress:v004
+        image: mvpstudio/standard-wordpress:v005
         resources:
           limits:
             cpu: 0.5
-            memory: 2Gi
+            memory: 1Gi
           requests:
             cpu: 0.5
-            memory: 2Gi
+            memory: 1Gi
         env:
         - name: WORDPRESS_DB_HOST
           value: mariadb:3306
@@ -64,6 +64,8 @@ spec:
               secretKeyRef:
                 name: wpsecrets
                 key: admin-password
+        - name: WP_ADMIN_EMAIL
+          value: changeme@mvpstudio.org
         - name: WP_TITLE
           value: "{{{ site-title }}}"
         - name: SITE_URL
