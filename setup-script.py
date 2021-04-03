@@ -129,7 +129,7 @@ def gen_and_store_wp_secrets(k8_client: kubernetes.client.CoreV1Api, namespace: 
     return admin_pass
 
 
-def apply_k8_running(k8_client: kubernetes.client.CoreV1Api, out_dir: Path) -> None:
+def apply_k8_running(k8_client: kubernetes.client.ApiClient, out_dir: Path) -> None:
     """Apply all the k8's manifest files under out_dir / running."""
     to_explore = [out_dir / 'running']
     while len(to_explore) > 0:
@@ -198,9 +198,11 @@ def main() -> None:
     generate_manifests(template_vars, args.out)
 
     if not args.dry_run:
-        apply_k8_running(k8_client, args.out) # pyright: reportUnboundVariable=false
+        # We need a different kind of client to be able to apply yaml files.
+        k8_api_client = kubernetes.client.ApiClient()
+        apply_k8_running(k8_api_client, args.out) # pyright: reportUnboundVariable=false
         if args.routing:
-            kubernetes.utils.create_from_yaml(k8_client, str(args.out / 'routing.yaml'))
+            kubernetes.utils.create_from_yaml(k8_api_client, str(args.out / 'routing.yaml'))
 
 
 if __name__ == '__main__':
