@@ -28,6 +28,11 @@ get put into the directory you specified in your `--out` argument to the script.
 use; it's probably best to put them in a `git` repository somewhere. The `routing.yaml` script in the root of your
 `--out` directory needs to be given to an MVP Studio administrator so that routing can be set up.
 
+When the script is complete you should have a running, functional WordPress site. Note that for security reasons we do
+not install tools like `PHPMyAdmin` or a file browser. However, we _do_ generate Kubernetes manifest files for them in
+the `maintenance` subdirectory of `--out` so that you can launch such tools if you need them via a simple `kubectl apply
+-f`. Please do not leave these tools running any longer than necessary.
+
 ## Redirects
 
 WordPress _really_ wants to redirect the user to whatever URL was set as `$WP_HOME` (this corresponds to the
