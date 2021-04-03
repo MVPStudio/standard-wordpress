@@ -1,0 +1,45 @@
+# Host and Mapping for the prod.apps.mvpstudio.org URL
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: "{{{ project-name }}}-mvpstudio"
+  namespace: ambassador-edge
+spec:
+  host: "{{{ project-name }}}.prod.apps.mvpstudio.org"
+  prefix: /
+  service: "wordpress.{{{ namespace }}}"
+---
+apiVersion: getambassador.io/v2
+kind: Host
+metadata:
+  name: "{{{ project-name }}}-mvpstudio"
+  namespace: ambassador-edge
+spec:
+  hostname: "{{{ project-name }}}.prod.apps.mvpstudio.org"
+  acmeProvider:
+    email: "mvpstudiooregon+{{{ project-name }}}-mvp@gmail.com"
+
+{{#if live}}
+# Host and Mapping for the "real" URL
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: "{{{ project-name }}}"
+  namespace: ambassador-edge
+spec:
+  host: "{{{ hostname }}}"
+  prefix: /
+  service: "wordpress.{{{ namespace }}}"
+---
+apiVersion: getambassador.io/v2
+kind: Host
+metadata:
+  name: "{{{ project-name }}}"
+  namespace: ambassador-edge
+spec:
+  hostname: "{{{ hostname }}}"
+  acmeProvider:
+    email: "mvpstudiooregon+{{{ project-name }}}@gmail.com"
+{{/if}}

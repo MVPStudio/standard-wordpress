@@ -5,6 +5,7 @@ from pathlib import Path
 import secrets
 import shutil
 import string
+import sys
 from typing import Dict, List, cast
 
 from kubernetes import kubernetes
@@ -33,20 +34,39 @@ def parse_args() -> argparse.Namespace:
                         help='The Kubernetes namespace to which the WordPress site will be deployed.')
     parser.add_argument('-t', '--title', type=str, 
                         help='The title for your WordPress site')
-    parser.add_argument('-u', '--url', type=str,
-                        help='The URL that will be used for your production WordPress site, including the '
-                        'protocol (e.g. "https://my.site.com").')
+    parser.add_argument('-u', '--hostname', type=str,
+                        help='The hostname that will be used for your production WordPress site. This is the base '
+                        'URL _excluding_ any http:// or https:// prefix.')
+    parser.add_argument('-p', '--project_name', type=str, default=None,
+                        help='A "project" name to be used in Kubernetes config files and such as an indentifier. By '
+                        'default this will be the hostname with characters like `.` replaced by `-`')
+    parser.add_argument('-l', '--live', action='store_true', default=False,
+                        help='If DNS entries have already been setup for --hostname to point to MVP studio '
+                        'infrastructure then set this to true. Otherwise it is false. When true we set up the SSL '
+                        'certificates for the --hostname but since that will fail if the DNS has not yet been set up '
+                        'this is false by default.')
 
 
     parsed = parser.parse_args()
 
-    prompt_if_missing = ['namespace', 'title', 'url']
+    prompt_if_missing = ['namespace', 'title', 'hostname']
 
     parsed_dict = vars(parsed)
     for opt in prompt_if_missing:
         if opt not in parsed_dict or parsed_dict[opt] is None:
             val = input(opt + ': ')
             setattr(parsed, opt, val)
+
+    if parsed.hostname.startswith('http') or parsed.hostname.find('://') != -1:
+        log.error('The --hostname argument must not include the http or https prefix. It should be just the hostname.')
+        log.error('For example, if the site is at http://mvpstudio.org then --hostname should be mvpstudio.org.')
+        parser.print_help()
+        sys.exit(1)
+
+    if parsed.project_name is None:
+        pn = parsed.hostname.replace('.', '-')
+        log.info('Setting project name to %s', pn)
+        setattr(parsed, 'project_name', pn)
 
     return parsed
 
@@ -151,15 +171,18 @@ def main() -> None:
         kubernetes.config.load_kube_config()
         k8_client = kubernetes.client.CoreV1Api()
 
-        gen_and_store_mdb_secrets(k8_client, args.namespace)
-        
-        wp_admin_pass = gen_and_store_wp_secrets(k8_client, args.namespace)
-        print('Admin password for the new WordPress site:', wp_admin_pass)
+        if not args.no_secrets:
+            gen_and_store_mdb_secrets(k8_client, args.namespace)
+            
+            wp_admin_pass = gen_and_store_wp_secrets(k8_client, args.namespace)
+            print('Admin password for the new WordPress site:', wp_admin_pass)
 
     template_vars = {
         'namespace': args.namespace,
         'site-title': args.title,
-        'site-url': args.url
+        'hostname': args.hostname,
+        'project-name': args.project_name,
+        'live': args.live
     }
     generate_manifests(template_vars, args.out)
 

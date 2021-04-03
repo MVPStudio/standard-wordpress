@@ -45,6 +45,10 @@ The `k8s` directory has 2 subdirectories under it:
    is rarely needed and it's a security concern so we don't run this unless it's necessary and then we run it only until
    the issue is resolved.
 
+In addition a `routing.yaml` file is produced. This must be applies in the `ambassador-edge` namespace and this is
+managed by the cluster admins (i.e. MVP Studio volunteers) so this file should be sent to an administrator to be
+applied.
+
 The k8s manifest files are standard Kubernetes configuration files _except_ there are some details that are specific
 to individual deployments like the namespace, hostname for routing, etc. These are therefore specified using [Handlebars
 template format](https://handlebarsjs.com/). For example, a service configuration might look like:
@@ -67,6 +71,9 @@ spec:
 
 Note that this is a normal configuration file except that the `namespace` is given as `{{ namespace }}`. This will be
 replaced by the actual namespace when the [setup script](#setup-script.py) is run.
+
+The available handlebars variables are:
+TODO: finish this!
 
 # Setup Script
 
