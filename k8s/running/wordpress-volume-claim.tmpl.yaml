@@ -12,6 +12,4 @@ spec:
          storage: 10Gi
    accessModes:
       - ReadWriteMany
-   selector:
-      matchLabels:
-         name: wordpress-volume
+   storageClassName: rook-ceph-block

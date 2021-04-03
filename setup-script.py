@@ -1,11 +1,13 @@
 import argparse
+import base64
 import logging
 from pathlib import Path
 import secrets
 import shutil
 import string
-from typing import Dict, List, Any
+from typing import Dict, List, cast
 
+from kubernetes import kubernetes
 from pybars import Compiler
 
 
@@ -24,6 +26,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-d', '--dry_run', action='store_true', default=False,
                         help='If given the manifest files will not be applied to the cluster, they will just '
                         'be generated to --out.')
+    parser.add_argument('--no_secrets', action='store_true', default=False,
+                        help='Skip the automatic generation of the database and WordPress secrets. You will have to '
+                        'manually create the secrets.')
     parser.add_argument('-n', '--namespace', type=str,
                         help='The Kubernetes namespace to which the WordPress site will be deployed.')
     parser.add_argument('-t', '--title', type=str, 
@@ -49,8 +54,61 @@ def parse_args() -> argparse.Namespace:
 def gen_password() -> str:
     """Generates a secure, random password and returns it."""
     alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(8))
+    return ''.join(secrets.choice(alphabet) for _ in range(10))
 
+
+def gen_and_store_mdb_secrets(k8_client: kubernetes.client.CoreV1Api, namespace: str) -> None:
+    """Generate and store the k8's secrets for MariaDb.
+
+    This includes the user and admin passwords.
+
+    Args:
+        k8_client: a configured CoreV1Api k8's client.
+        namespace: the namespace in which to create the secrets.
+    """
+    body = kubernetes.client.V1Secret(
+        string_data={
+            'user-password': gen_password(),
+            'root-password': gen_password()})
+    body.metadata = {'name': 'mdbsecrets'}
+    log.info('Creating database secrets')
+    try:
+        k8_client.create_namespaced_secret(namespace=namespace, body=body)
+    except kubernetes.client.ApiException as e:
+        if e.status == 409:
+            log.info('Secret was already created. Will not over-write it.')
+        else:
+            raise e
+
+
+def gen_and_store_wp_secrets(k8_client: kubernetes.client.CoreV1Api, namespace: str) -> str:
+    """Generate and store the WordPress secrets.
+
+    This includes the password for the admin user
+
+    Args:
+        k8_client: a configured CoreV1Api k8's client.
+        namespace: the namespace in which to create the secrets.
+
+    Returns:
+        The password for the admin user. This can be used to log into the new WordPress instance.
+    """
+    admin_pass = gen_password()
+    body = kubernetes.client.V1Secret(string_data={'admin-password': admin_pass})
+    body.metadata = {'name': 'wpsecrets'}
+    log.info('Creating  WordPress secrets')
+
+    try:
+        k8_client.create_namespaced_secret(namespace=namespace, body=body)
+    except kubernetes.client.ApiException as e:
+        if e.status == 409:
+            log.info('Admin password already exists.')
+            # Now we have to fetch that password so we can return it to the user
+            secret = cast(kubernetes.client.V1Secret,
+                          k8_client.read_namespaced_secret(name='wpsecrets', namespace=namespace))
+            admin_pass = base64.b64decode(secret.data['admin-password']).decode('utf-8')
+
+    return admin_pass
 
 def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
     """Given template_vars, a dict from template variable name to the value for that variable, recursively find all
@@ -89,6 +147,15 @@ def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
 
 def main() -> None:
     args = parse_args()
+    if not args.dry_run:
+        kubernetes.config.load_kube_config()
+        k8_client = kubernetes.client.CoreV1Api()
+
+        gen_and_store_mdb_secrets(k8_client, args.namespace)
+        
+        wp_admin_pass = gen_and_store_wp_secrets(k8_client, args.namespace)
+        print('Admin password for the new WordPress site:', wp_admin_pass)
+
     template_vars = {
         'namespace': args.namespace,
         'site-title': args.title,
