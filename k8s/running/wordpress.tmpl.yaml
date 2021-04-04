@@ -86,10 +86,10 @@ spec:
               cpu: 0.1
               memory: 200M
         args:
-           - "--backup_freq=1m"
-           - "--short_keep=4m"
-           - "--long_freq=2m"
-           - "--long_keep=1h"
+           - "--backup_freq=1d"
+           - "--short_keep=7d"
+           - "--long_freq=7d"
+           - "--long_keep=28d"
         volumeMounts:
            - name: wp-data
              mountPath: /src
