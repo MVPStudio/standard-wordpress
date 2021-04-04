@@ -77,7 +77,7 @@ spec:
           - name: wp-data
             mountPath: /var/www/html
       - name: wordpress-backup
-        image: mvpstudio/wordpress-backup:v007
+        image: mvpstudio/wordpress-backup:v008
         resources:
            limits:
               cpu: 0.1

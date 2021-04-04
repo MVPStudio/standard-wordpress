@@ -193,9 +193,11 @@ def main():
             long_archives = get_archive_list(LONG_DIR)
             # Update long-term archive if newest one is older than long duration
             if filename2age(now, long_archives[0]) >= args.long_freq:
+                log.info('Copying %s to longs', tar_filename)
                 shutil.copy(tar_filename, LONG_DIR)
                 delete_too_old(LONG_DIR, now, args.long_keep)
 
+        log.info('Sleeping for %s == %s seconds', args.backup_freq, args.backup_freq.total_seconds())
         time.sleep(args.backup_freq.total_seconds())
 
 if __name__ == '__main__':
