@@ -5,6 +5,7 @@ from pathlib import Path
 import secrets
 import shutil
 import string
+import subprocess
 import sys
 from typing import Dict, List, cast
 
@@ -41,7 +42,7 @@ def parse_args() -> argparse.Namespace:
                         help='A "project" name to be used in Kubernetes config files and such as an indentifier. By '
                         'default this will be the hostname with characters like `.` replaced by `-`')
     parser.add_argument('-r', '--routing', action='store_true', default=False,
-                        help='By default this script generating a routing.yaml file but it does not apply it as only '
+                        help='By default this script generating a routing.yml file but it does not apply it as only '
                         'MVP Studio admins have permissions to do so. However, if you _are_ an admin you can have the '
                         'script apply that file as well by passing this argument.')
 
@@ -129,8 +130,14 @@ def gen_and_store_wp_secrets(k8_client: kubernetes.client.CoreV1Api, namespace: 
     return admin_pass
 
 
-def apply_k8_running(k8_client: kubernetes.client.ApiClient, out_dir: Path) -> None:
-    """Apply all the k8's manifest files under out_dir / running."""
+def apply_k8_running(out_dir: Path) -> None:
+    """Apply all the k8's manifest files under out_dir / running.
+
+    Note that here we shell out to `kubectl` rather than using the kubernetes.ApiClient. That's because if you create
+    resources with the API client it doesn't save information about the file from which the resources were created and
+    it is then not safe to modify one of the manifests and re-run `kubectl apply` to update the resource; k8's then
+    can't figure out what's changed.
+    """
     to_explore = [out_dir / 'running']
     while len(to_explore) > 0:
         cur_dir = to_explore.pop().absolute()
@@ -140,17 +147,17 @@ def apply_k8_running(k8_client: kubernetes.client.ApiClient, out_dir: Path) -> N
                 to_explore.append(file_or_dir)
             else:
                 log.info('Applying %s', file_or_dir)
-                kubernetes.utils.create_from_yaml(k8_client, str(file_or_dir))
+                subprocess.check_call(['kubectl', 'apply', '-f', str(file_or_dir)])
 
 def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
     """Given template_vars, a dict from template variable name to the value for that variable, recursively find all
-    files under K8_DIR, expand them as handlebars templates if they have a .tmpl.yaml extension, and copy them to the
-    same relative location in dest.  Files found under K8_DIR that do not end with .tmpl.yaml are copied unchanged to
+    files under K8_DIR, expand them as handlebars templates if they have a .tmpl.yml extension, and copy them to the
+    same relative location in dest.  Files found under K8_DIR that do not end with .tmpl.yml are copied unchanged to
     dest.
     """
     compiler = Compiler()
 
-    TEMPLATE_SUFFIX = '.tmpl.yaml'
+    TEMPLATE_SUFFIX = '.tmpl.yml'
 
     # As we walk cur_dir we'll find additional subdirectories which we'll push here to be explored in later iterations.
     to_explore: List[Path] = [K8_DIR.absolute()]
@@ -198,11 +205,10 @@ def main() -> None:
     generate_manifests(template_vars, args.out)
 
     if not args.dry_run:
-        # We need a different kind of client to be able to apply yaml files.
-        k8_api_client = kubernetes.client.ApiClient()
-        apply_k8_running(k8_api_client, args.out) # pyright: reportUnboundVariable=false
+        apply_k8_running(args.out)
         if args.routing:
-            kubernetes.utils.create_from_yaml(k8_api_client, str(args.out / 'routing.yaml'))
+            # See apply_k8_running for why we shell out here.
+            subprocess.check_call(['kubectl', 'apply', '-f', str(args.out / 'routing.yml')])
 
 
 if __name__ == '__main__':

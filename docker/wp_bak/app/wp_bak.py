@@ -149,19 +149,33 @@ def delete_too_old(dir, now, cutoff):
             log.info('Deleting aged archive - %s', archive)
             dir.joinpath(archive).unlink()
 
-def filter_lost_and_found(ti: tarfile.TarInfo) -> Optional[tarfile.TarInfo]:
-    """Filter out lost+found directories.
+def create_tarfile(tar_path: Path, start_dir: Path) -> None:
+    """Recursively tars up start_dir and adds all the files in it to the tarball that will be created at tar_path.
 
-    Our storage layer creates lost+found directories but these are owned by root and not accessible to the backup so we
-    have to filter them out of the tarfile. This is a function that can be passed to the filter argument of tarfile.add
-    to do that.
+    Note that you can simply add the main directory to the tarball and it will handle recursively adding all the files
+    under it. However, if adding any single file fails that the entire tarball creation fails and we don't want that.
+    For example, there are lost+found directories owned by root that we can't read, a user might manually create some
+    files with bad permissions, etc. so we want to log any files we skip but we still want to back up what we can. We
+    therefore manually add each file in a try/catch block.
     """
-    if ti.path is not None:
-        as_path = Path(ti.path)
-        if as_path.name == 'lost+found':
-            log.info('Dropping lost+found file/dir: %s', as_path)
-            return None
-    return ti
+    tar = tarfile.open(tar_path, mode='w:gz')
+    to_add = [start_dir]
+    while len(to_add) > 0:
+        cur_dir = to_add.pop()
+        try:
+            for file_or_dir in cur_dir.iterdir():
+                try:
+                    if file_or_dir.is_dir():
+                        to_add.append(file_or_dir)
+                    else:
+                        tar.add(str(file_or_dir))
+                except Exception as e:
+                    log.warning('Error handling file or directory %s: %s. It will not be saved in the backup.',
+                                file_or_dir, e)
+        except Exception as e:
+            log.warning('Error handling directory %s: %s. It will not be saved in the backup.', cur_dir, e)
+    tar.close()
+
 
 def main():
     """Wakes up every day and makes a backup in the short-term directory. 
@@ -182,11 +196,7 @@ def main():
         # Archive the directory
         log.info('Archiving %s', timestamp)
         tar_filename = SHORT_DIR.joinpath('archive'+timestamp+'.tar.gz')
-        tar = tarfile.open(tar_filename, mode='w:gz')
-        # Our storage layer creates lost+found directories that we don't have permissions to and that would cause
-        # the backup to fail so we filter those out.
-        tar.add(SRC_DIR, filter=filter_lost_and_found)
-        tar.close()
+        create_tarfile(tar_filename, SRC_DIR)
         log.info('Archive at %s complete', timestamp)
 
         # Delete the archves that are too old

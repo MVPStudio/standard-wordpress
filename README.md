@@ -1,13 +1,12 @@
 # Standard Wordpress
 
 This is our standard WordPress setup for Kubernetes. People who want to run WordPress on MVPStudio infrastructure can
-simply fork this repo and run a few `kubectl` commands to get a running WordPress system.
+simply run `setup-script.py` to generate all the k8's manifest files and apply them.
 
 # Quick Start
 
-In order to get started you will need to run the `setup-script.py`. But first you will need a few packages installed. To
-likely want to install them into a [venv](https://docs.python.org/3/tutorial/venv.html) and install the required files
-there:
+In order to get started you will need to run the `setup-script.py`. But first you will need a few packages installed.
+You likely want to create a [venv](https://docs.python.org/3/tutorial/venv.html) and install the required files there:
 
 ```bash
 $ python3 -m venv venv
@@ -23,15 +22,19 @@ can see all the arguments by running it with `--help`:
 python setup-script.py --help
 ```
 
-All of the generated files, including the `maintenance` once that you might want to `kubectl apply` later (see below)
+Note that if you don't supply some of the necessary arguments `setup-script.py` will prompt you for the correct values.
+All of the generated files, including the `maintenance` ones that you might want to `kubectl apply` later (see below)
 get put into the directory you specified in your `--out` argument to the script. You will want to save these for later
-use; it's probably best to put them in a `git` repository somewhere. The `routing.yaml` script in the root of your
+use; it's probably best to put them in a `git` repository somewhere. The `routing.yml` script in the root of your
 `--out` directory needs to be given to an MVP Studio administrator so that routing can be set up.
 
 When the script is complete you should have a running, functional WordPress site. Note that for security reasons we do
 not install tools like `PHPMyAdmin` or a file browser. However, we _do_ generate Kubernetes manifest files for them in
 the `maintenance` subdirectory of `--out` so that you can launch such tools if you need them via a simple `kubectl apply
 -f`. Please do not leave these tools running any longer than necessary.
+
+The `setup-script.py` script shells out to `kubectl` to apply the generated files unless you pass `--dry_run` to the
+script. Thus `kubectl` will need to be in your `$PATH`.
 
 ## Backups
 
@@ -45,7 +48,7 @@ site being compromised and it's a good solution to protect against accidental fi
 etc. However, **we still recommend a standard backup plugin** so you don't lose data if the MVP Studio storage breaks.
 
 The backup frequency and retention policy for the sidecar is configurable via command line arguments which you can
-modify in the generated `running/wordpress.yaml` file. The `--backup_freq` determines how often a backup is made. We keep
+modify in the generated `running/wordpress.yml` file. The `--backup_freq` determines how often a backup is made. We keep
 all backups for `--short_keep`. We also ensure that we keep some backups for longer (e.g. in case you didn't notice that
 you site was messed up for a few weeks. There is thus a 2nd directory, `longs` holding older backups. Every time we make
 a backup we check this directory. If all of the backups there are older than `--long_freq` we copy the newest backup to
@@ -55,7 +58,6 @@ The sidecar should make a backup immediately after starting and then every `--ba
 
 If you need to restore your site you can simply `kubectl exec` into the backup container. Since it can see the main
 wordpress volume and the backup volume it can simply use `tar` to extract a backup back into the wordpress volume.
-`--long_max_keep`.
 
 ## Redirects
 
@@ -87,7 +89,7 @@ The `k8s` directory has 2 subdirectories under it:
    is rarely needed and it's a security concern so we don't run this unless it's necessary and then we run it only until
    the issue is resolved.
 
-In addition a `routing.yaml` file is produced. This must be applies in the `ambassador-edge` namespace and this is
+In addition a `routing.yml` file is produced. This must be applies in the `ambassador-edge` namespace and this is
 managed by the cluster admins (i.e. MVP Studio volunteers) so this file should be sent to an administrator to be
 applied.
 
