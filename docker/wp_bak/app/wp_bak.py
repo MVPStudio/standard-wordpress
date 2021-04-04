@@ -75,6 +75,7 @@ def parse_args() -> argparse.Namespace:
                         help='How frequently to retain "long" backups (see the main repo README for details). '
                         'Format is the same as for --backup_freq. Default is 28 days.')
 
+    log.info('Parsing command line: %s', sys.argv)
     parsed = parser.parse_args()
 
     error = False
@@ -91,6 +92,12 @@ def parse_args() -> argparse.Namespace:
     if error:
         parser.print_help()
         sys.exit(1)
+
+    log.info('Settings:')
+    log.info('backup_freq: %s', parsed.backup_freq)
+    log.info('short_keep: %s', parsed.short_keep)
+    log.info('long_freq: %s', parsed.long_freq)
+    log.info('long_keep: %s', parsed.long_keep)
 
     return parsed
 
