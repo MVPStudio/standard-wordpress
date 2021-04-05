@@ -76,7 +76,38 @@ spec:
         volumeMounts:
           - name: wp-data
             mountPath: /var/www/html
-      volumes:
-       - name: wp-data
-         persistentVolumeClaim:
-            claimName: wordpress-volume-claim
+      - name: wordpress-backup
+        image: mvpstudio/wordpress-backup:v017
+        resources:
+           limits:
+              cpu: 0.1
+              memory: 200M
+           requests:
+              cpu: 0.1
+              memory: 200M
+        args:
+           - "--backup_freq=1d"
+           - "--short_keep=7d"
+           - "--long_freq=7d"
+           - "--long_keep=28d"
+        volumeMounts:
+           - name: wp-data
+             mountPath: /src
+             readOnly: true
+           - name: wp-backup
+             mountPath: /dst
+  volumeClaimTemplates:
+    - metadata:
+        name: wp-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+    - metadata:
+        name: wp-backup
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 30Gi

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Docker:
 # docker build -t mvpstudio/wordpress-backup:v0001 .
-# docker run -v `pwd`/src:/home/mvp/app/src -v `pwd`/dst:/home/mvp/app/dst -t mvpstudio/wordpress-backup:v0001
+# docker run -v `pwd`/src:/src -v `pwd`/dst:/dst -t mvpstudio/wordpress-backup:v0001
 
 import argparse
 from datetime import datetime, timedelta
@@ -14,13 +14,14 @@ import shutil
 import sys
 import tarfile
 import time
+from typing import Optional
 
 #############################
 # CONSTANTS
 #############################
 
-SRC_DIR=Path('src')
-DST_DIR=Path('dst')
+SRC_DIR=Path('/src')
+DST_DIR=Path('/dst')
 SHORT_DIR=DST_DIR.joinpath('shorts')
 LONG_DIR=DST_DIR.joinpath('longs')
 
@@ -74,6 +75,7 @@ def parse_args() -> argparse.Namespace:
                         help='How frequently to retain "long" backups (see the main repo README for details). '
                         'Format is the same as for --backup_freq. Default is 28 days.')
 
+    log.info('Parsing command line: %s', sys.argv)
     parsed = parser.parse_args()
 
     error = False
@@ -90,6 +92,12 @@ def parse_args() -> argparse.Namespace:
     if error:
         parser.print_help()
         sys.exit(1)
+
+    log.info('Settings:')
+    log.info('backup_freq: %s', parsed.backup_freq)
+    log.info('short_keep: %s', parsed.short_keep)
+    log.info('long_freq: %s', parsed.long_freq)
+    log.info('long_keep: %s', parsed.long_keep)
 
     return parsed
 
@@ -141,6 +149,20 @@ def delete_too_old(dir, now, cutoff):
             log.info('Deleting aged archive - %s', archive)
             dir.joinpath(archive).unlink()
 
+def filter_lost_and_found(ti: tarfile.TarInfo) -> Optional[tarfile.TarInfo]:
+    """Filter out lost+found directories.
+
+    Our storage layer creates lost+found directories but these are owned by root and not accessible to the backup so we
+    have to filter them out of the tarfile. This is a function that can be passed to the filter argument of tarfile.add
+    to do that.
+    """
+    if ti.path is not None:
+        as_path = Path(ti.path)
+        if as_path.name == 'lost+found':
+            log.info('Dropping lost+found file/dir: %s', as_path)
+            return None
+    return ti
+
 def main():
     """Wakes up every day and makes a backup in the short-term directory. 
     Deletes copies that are older than 7 days old. In the long-term directory, 
@@ -161,8 +183,11 @@ def main():
         log.info('Archiving %s', timestamp)
         tar_filename = SHORT_DIR.joinpath('archive'+timestamp+'.tar.gz')
         tar = tarfile.open(tar_filename, mode='w:gz')
-        tar.add(SRC_DIR)
-        tar.close
+        # Our storage layer creates lost+found directories that we don't have permissions to and that would cause
+        # the backup to fail so we filter those out.
+        tar.add(SRC_DIR, filter=filter_lost_and_found)
+        tar.close()
+        log.info('Archive at %s complete', timestamp)
 
         # Delete the archves that are too old
         delete_too_old(SHORT_DIR, now, args.short_keep)
@@ -175,9 +200,11 @@ def main():
             long_archives = get_archive_list(LONG_DIR)
             # Update long-term archive if newest one is older than long duration
             if filename2age(now, long_archives[0]) >= args.long_freq:
+                log.info('Copying %s to longs', tar_filename)
                 shutil.copy(tar_filename, LONG_DIR)
                 delete_too_old(LONG_DIR, now, args.long_keep)
 
+        log.info('Sleeping for %s == %s seconds', args.backup_freq, args.backup_freq.total_seconds())
         time.sleep(args.backup_freq.total_seconds())
 
 if __name__ == '__main__':

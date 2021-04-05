@@ -4,4 +4,4 @@ USER mvp
 COPY app /home/mvp/app
 WORKDIR /home/mvp/app
 
-ENTRYPOINT ./wp_bak.py
+ENTRYPOINT ["/usr/bin/python3", "wp_bak.py"]

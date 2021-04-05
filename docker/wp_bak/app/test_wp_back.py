@@ -16,3 +16,6 @@ class TestWpBack(unittest.TestCase):
 
         t = make_timedelta('1h6s5s2d')
         self.assertEqual(t, timedelta(days=2, hours=1, seconds=6 + 5))
+
+        t = make_timedelta('1m')
+        self.assertEqual(t, timedelta(minutes=1))
