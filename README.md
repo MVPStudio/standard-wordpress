@@ -33,6 +33,30 @@ not install tools like `PHPMyAdmin` or a file browser. However, we _do_ generate
 the `maintenance` subdirectory of `--out` so that you can launch such tools if you need them via a simple `kubectl apply
 -f`. Please do not leave these tools running any longer than necessary.
 
+## Backups
+
+The standard setup also includes automatic backups. Specifically, we have a "Kubernetes sidecar" that copies all the
+files and the MySQL data from the main WordPress volume into another volume that's accessible only to the side car. The
+code and container that does this can be found in `docker/wp_bak`. Note that this isn't a great way to protect against
+actual data loss: if something were to happen to the MVP Studio storage layer you'd lose the main data and the backup.
+However, unlike most WordPress backup plugins, if an attacker is able to compromise your WordPress site they still won't
+have access to the backup volume so they can't delete or modify the backups. Thus, this solution is very robust to a
+site being compromised and it's a good solution to protect against accidental file corruption, upgrades that go poorly,
+etc. However, **we still recommend a standard backup plugin** so you don't lose data if the MVP Studio storage breaks.
+
+The backup frequency and retention policy for the sidecar is configurable via command line arguments which you can
+modify in the generated `running/wordpress.yaml` file. The `--backup_freq` determines how often a backup is made. We keep
+all backups for `--short_keep`. We also ensure that we keep some backups for longer (e.g. in case you didn't notice that
+you site was messed up for a few weeks. There is thus a 2nd directory, `longs` holding older backups. Every time we make
+a backup we check this directory. If all of the backups there are older than `--long_freq` we copy the newest backup to
+the `longs` directory. We retain any backups in `long` that are less old than `--long_keep`.
+
+The sidecar should make a backup immediately after starting and then every `--backup_freq` after that.
+
+If you need to restore your site you can simply `kubectl exec` into the backup container. Since it can see the main
+wordpress volume and the backup volume it can simply use `tar` to extract a backup back into the wordpress volume.
+`--long_max_keep`.
+
 ## Redirects
 
 WordPress _really_ wants to redirect the user to whatever URL was set as `$WP_HOME` (this corresponds to the

@@ -1,6 +1,7 @@
 # Docker Image
 
-This is the Docker image for the main WordPress container.
+This is the Docker image for the main WordPress container. It is published to `mvpstudio/standard-wordpress` on
+DockerHub.
 
 This image will _copy_ the WordPress install from the docker container to `/var/www/html` when it starts if that
 directory is empty. See [the main README.md](../../README.md) for details.

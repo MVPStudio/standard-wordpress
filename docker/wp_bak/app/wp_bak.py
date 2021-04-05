@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # Docker:
-# docker build -t colindavey/wp_bak:alpha .
-# docker run -v `pwd`/src:/home/mvp/app/src -v `pwd`/dst:/home/mvp/app/dst -t colindavey/wp_bak:alpha
+# docker build -t mvpstudio/wordpress-backup:v0001 .
+# docker run -v `pwd`/src:/home/mvp/app/src -v `pwd`/dst:/home/mvp/app/dst -t mvpstudio/wordpress-backup:v0001
 
+import argparse
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
+import re
 import logging
 import os
 from pathlib import Path
@@ -24,28 +26,73 @@ LONG_DIR=DST_DIR.joinpath('longs')
 
 DATE_TIME_FORMAT = "%Y-%m-%d-%H-%M-%S"
 
-# Duration between backups in seconds
-# Actual value
-# SHORT_DURATION = timedelta(days=1)
-# Value for testing
-SHORT_DURATION = timedelta(seconds=1)
-# Delete everything in the shorts folder older than this
-SHORT_DURATION_TO_KEEP = 7 * SHORT_DURATION
-
-LONG_DURATION = 30 * SHORT_DURATION
-# Delete everything in the longs folder older than this
-LONG_DURATION_TO_KEEP = 2 * LONG_DURATION
-
-# Set to a value for testing
-# NUM_REPS = None
-NUM_REPS = 100
-
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 log = logging.getLogger(__name__)
 
 #############################
 # FUNCTIONS
 #############################
+
+def make_timedelta(arg: str) -> timedelta:
+    """Given a string holding values with suffixes like `d` for day, `h` for hour, `m` for minutes, and `s` for seconds
+    return a timedelta with the corresponding value. For example, "1d 4h 3s" would be parsed into a timedelta with value
+    1 day, 4 hours, and 3 seconds.
+    """
+    # Regular expression to look for integers followed by d, h, m, or s suffixes (for days, hours, minutes, and
+    # seconds).
+    hms_re = re.compile(r'\s*(\d+)\s*([dhms])\s*')
+
+    units = {
+        'd': timedelta(days=1),
+        'h': timedelta(hours=1),
+        'm': timedelta(minutes=1),
+        's': timedelta(seconds=1)
+    }
+
+    result = timedelta(seconds=0)
+    for m in hms_re.finditer(arg):
+        unit = units[m.group(2)]
+        result += int(m.group(1)) * unit
+
+    return result
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Backs up a WordPress site')
+    parser.add_argument('-b', '--backup_freq', type=make_timedelta, default=timedelta(days=1),
+                       help='How frequently to make backups. This is a string with "d" indicating days, '
+                       '"h" indicating hours, "m" indicating minutes, and "s" for seconds. Thus a '
+                        'string like "2d4h7m" means "make a backup every 2 days, 4 hours and 7 minutes". '
+                       'Default is 1 day.')
+    parser.add_argument('--short_keep', type=make_timedelta, default=timedelta(days=7),
+                        help='How long to keep every backup. Format is the same as for --backup_freq. '
+                       'Default is 7 days.')
+    parser.add_argument('-l', '--long_freq', type=make_timedelta, default=timedelta(days=7),
+                        help='How frequently to make a "long" backup (see the main repo README for details). '
+                        'Format is the same as for --backup_freq. Default is 7 days.')
+    parser.add_argument('--long_keep', type=make_timedelta, default=timedelta(days=28),
+                        help='How frequently to retain "long" backups (see the main repo README for details). '
+                        'Format is the same as for --backup_freq. Default is 28 days.')
+
+    parsed = parser.parse_args()
+
+    error = False
+    if parsed.backup_freq >= parsed.short_keep:
+        log.error('--backup_freq must be less than --short_keep')
+        error = True
+
+    if parsed.backup_freq >= parsed.long_freq:
+        log.error('--backup_freq must be less than --long_freq')
+
+    if parsed.long_freq >= parsed.long_keep:
+        log.error('--long_freq must be less than --long_keep')
+
+    if error:
+        parser.print_help()
+        sys.exit(1)
+
+    return parsed
+
 
 def filename2age(now, filename):
     """Calculcates the age of a file, in seconds from the files name.
@@ -102,12 +149,11 @@ def main():
     The numbers stated above are examples, and are settable by editing the 
     constants above. 
     """
+    args = parse_args()
     SHORT_DIR.mkdir(parents=True, exist_ok=True)
     LONG_DIR.mkdir(parents=True, exist_ok=True)
-    rep = 0
 
     while True:
-        time.sleep(SHORT_DURATION.total_seconds())
         now = datetime.now()
         timestamp = now.strftime(DATE_TIME_FORMAT)
 
@@ -119,7 +165,7 @@ def main():
         tar.close
 
         # Delete the archves that are too old
-        delete_too_old(SHORT_DIR, now, SHORT_DURATION_TO_KEEP)
+        delete_too_old(SHORT_DIR, now, args.short_keep)
 
         # Archive long-term copy if necessary
         # If there are no long-term copies
@@ -128,15 +174,11 @@ def main():
         else:
             long_archives = get_archive_list(LONG_DIR)
             # Update long-term archive if newest one is older than long duration
-            if filename2age(now, long_archives[0]) >= LONG_DURATION:
+            if filename2age(now, long_archives[0]) >= args.long_freq:
                 shutil.copy(tar_filename, LONG_DIR)
-                delete_too_old(LONG_DIR, now, LONG_DURATION_TO_KEEP)
+                delete_too_old(LONG_DIR, now, args.long_keep)
 
-        if NUM_REPS is not None:
-            rep = rep + 1
-            print('rep:', rep)
-            if(rep > NUM_REPS):
-                break
+        time.sleep(args.backup_freq.total_seconds())
 
 if __name__ == '__main__':
     main()
