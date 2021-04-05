@@ -1,0 +1,39 @@
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: "{{{ project-name }}}"
+  namespace: ambassador-edge
+spec:
+  host: "{{{ hostname }}}"
+  prefix: /
+  service: "wordpress.{{{ namespace }}}"
+  # Set all the timeouts to 0 'cause when you do things like upgrade plugins in Wordpress
+  # the HTTP requests that give you the status of the upgrade just wait until the upgrade
+  # is complete which can be very slow. However, contrary to what the docs say
+  # (https://www.getambassador.io/docs/latest/topics/using/timeouts/) a timeout
+  # of 0 doesn't disable the timeout; it causes all the ambassador pods to die with errors like:
+  #
+  # ```
+  # Proto constraint validation failed
+  # (BootstrapValidationError.StaticResources: ["embedded message failed
+  # validation"] | caused by StaticResourcesValidationError.Clusters[i]:
+  # ["embedded message failed validation"] | caused by
+  # ClusterValidationError.ConnectTimeout: ["value must be greater than "
+  # "0s"])
+  # ```
+  #
+  # so we just set it really high
+  timeout_ms: 120000
+  idle_timeout_ms: 120000
+  connect_timeout_ms: 120000
+---
+apiVersion: getambassador.io/v2
+kind: Host
+metadata:
+  name: "{{{ project-name }}}"
+  namespace: ambassador-edge
+spec:
+  hostname: "{{{ hostname }}}"
+  acmeProvider:
+    email: "mvpstudiooregon+{{{ project-name }}}@gmail.com"

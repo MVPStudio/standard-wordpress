@@ -37,7 +37,7 @@ spec:
     spec:
       containers:
       - name: wordpress
-        image: mvpstudio/standard-wordpress:v005
+        image: mvpstudio/standard-wordpress:v006
         resources:
           limits:
             cpu: 0.5
@@ -69,7 +69,7 @@ spec:
         - name: WP_TITLE
           value: "{{{ site-title }}}"
         - name: SITE_URL
-          value: "{{{ site-url }}}"
+          value: "{{{ hostname }}}"
         ports:
         - containerPort: 80
           name: wordpress

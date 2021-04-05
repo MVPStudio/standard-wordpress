@@ -38,6 +38,10 @@ then
       eixt 1
    fi
 
+   # Prepare directories and permissions so wp-cli runs correctly
+   mkdir -p /var/www/.wp-cli/cache
+   chmod -R a+rwX /var/www/.wp-cli
+
    echo "Setting up WordPress"
    # TODO: I'm not sure if we want to do this or not.
    sudo -u www-data -- php /usr/local/bin/wp-cli.phar core install --url=$SITE_URL \
@@ -47,15 +51,10 @@ then
 
    # Now install some plugins
    echo "Installing wordfence"
+   echo "Do not worry about the fopen and flock errors you are about to see. WordFence installs just fine."
    # Note we don't run as root or we could end up copying files and things we can't read or manage.
    sudo -u www-data -- php /usr/local/bin/wp-cli.phar plugin install wordfence --activate
    echo "Done installing wordfence."
-
-   # This prevents the URL redirect so you can setup the site without needing it to be live.
-   # See the REAMDE for details. You probably want to remove the configs set here before going
-   # live. Again, see the README.
-   sudo -u www-data -- php /usr/local/bin/wp-cli.phar config set WP_HOME '"http://" . $_SERVER["SERVER_NAME"]' --raw
-   sudo -u www-data -- php /usr/local/bin/wp-cli.phar config set WP_SITEURL 'WP_HOME . "/"' --raw
 fi
 
 

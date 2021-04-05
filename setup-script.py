@@ -5,6 +5,7 @@ from pathlib import Path
 import secrets
 import shutil
 import string
+import sys
 from typing import Dict, List, cast
 
 from kubernetes import kubernetes
@@ -33,20 +34,37 @@ def parse_args() -> argparse.Namespace:
                         help='The Kubernetes namespace to which the WordPress site will be deployed.')
     parser.add_argument('-t', '--title', type=str, 
                         help='The title for your WordPress site')
-    parser.add_argument('-u', '--url', type=str,
-                        help='The URL that will be used for your production WordPress site, including the '
-                        'protocol (e.g. "https://my.site.com").')
-
+    parser.add_argument('-u', '--hostname', type=str,
+                        help='The hostname that will be used for your production WordPress site. This is the base '
+                        'URL _excluding_ any http:// or https:// prefix.')
+    parser.add_argument('-p', '--project_name', type=str, default=None,
+                        help='A "project" name to be used in Kubernetes config files and such as an indentifier. By '
+                        'default this will be the hostname with characters like `.` replaced by `-`')
+    parser.add_argument('-r', '--routing', action='store_true', default=False,
+                        help='By default this script generating a routing.yaml file but it does not apply it as only '
+                        'MVP Studio admins have permissions to do so. However, if you _are_ an admin you can have the '
+                        'script apply that file as well by passing this argument.')
 
     parsed = parser.parse_args()
 
-    prompt_if_missing = ['namespace', 'title', 'url']
+    prompt_if_missing = ['namespace', 'title', 'hostname']
 
     parsed_dict = vars(parsed)
     for opt in prompt_if_missing:
         if opt not in parsed_dict or parsed_dict[opt] is None:
             val = input(opt + ': ')
             setattr(parsed, opt, val)
+
+    if parsed.hostname.startswith('http') or parsed.hostname.find('://') != -1:
+        log.error('The --hostname argument must not include the http or https prefix. It should be just the hostname.')
+        log.error('For example, if the site is at http://mvpstudio.org then --hostname should be mvpstudio.org.')
+        parser.print_help()
+        sys.exit(1)
+
+    if parsed.project_name is None:
+        pn = parsed.hostname.replace('.', '-')
+        log.info('Setting project name to %s', pn)
+        setattr(parsed, 'project_name', pn)
 
     return parsed
 
@@ -110,6 +128,20 @@ def gen_and_store_wp_secrets(k8_client: kubernetes.client.CoreV1Api, namespace: 
 
     return admin_pass
 
+
+def apply_k8_running(k8_client: kubernetes.client.ApiClient, out_dir: Path) -> None:
+    """Apply all the k8's manifest files under out_dir / running."""
+    to_explore = [out_dir / 'running']
+    while len(to_explore) > 0:
+        cur_dir = to_explore.pop().absolute()
+        log.info('Looking for Kubernetes files to apply in %s', cur_dir)
+        for file_or_dir in cur_dir.iterdir():
+            if file_or_dir.is_dir():
+                to_explore.append(file_or_dir)
+            else:
+                log.info('Applying %s', file_or_dir)
+                kubernetes.utils.create_from_yaml(k8_client, str(file_or_dir))
+
 def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
     """Given template_vars, a dict from template variable name to the value for that variable, recursively find all
     files under K8_DIR, expand them as handlebars templates if they have a .tmpl.yaml extension, and copy them to the
@@ -124,7 +156,7 @@ def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
     to_explore: List[Path] = [K8_DIR.absolute()]
     while len(to_explore) > 0:
         cur_dir = to_explore.pop().absolute()
-        log.info('Looking for Kubernetes files in %s', cur_dir)
+        log.info('Looking for Kubernetes files and templates in %s', cur_dir)
         for file_or_dir in cur_dir.iterdir():
             if file_or_dir.is_dir():
                 to_explore.append(file_or_dir)
@@ -151,17 +183,26 @@ def main() -> None:
         kubernetes.config.load_kube_config()
         k8_client = kubernetes.client.CoreV1Api()
 
-        gen_and_store_mdb_secrets(k8_client, args.namespace)
-        
-        wp_admin_pass = gen_and_store_wp_secrets(k8_client, args.namespace)
-        print('Admin password for the new WordPress site:', wp_admin_pass)
+        if not args.no_secrets:
+            gen_and_store_mdb_secrets(k8_client, args.namespace)
+            
+            wp_admin_pass = gen_and_store_wp_secrets(k8_client, args.namespace)
+            print('Admin password for the new WordPress site:', wp_admin_pass)
 
     template_vars = {
         'namespace': args.namespace,
         'site-title': args.title,
-        'site-url': args.url
+        'hostname': args.hostname,
+        'project-name': args.project_name,
     }
     generate_manifests(template_vars, args.out)
+
+    if not args.dry_run:
+        # We need a different kind of client to be able to apply yaml files.
+        k8_api_client = kubernetes.client.ApiClient()
+        apply_k8_running(k8_api_client, args.out) # pyright: reportUnboundVariable=false
+        if args.routing:
+            kubernetes.utils.create_from_yaml(k8_api_client, str(args.out / 'routing.yaml'))
 
 
 if __name__ == '__main__':
