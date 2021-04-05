@@ -5,16 +5,15 @@
 
 import argparse
 from datetime import datetime, timedelta
-from fnmatch import fnmatch
-import re
 import logging
 import os
 from pathlib import Path
+import re
 import shutil
 import sys
 import tarfile
 import time
-from typing import Optional
+from typing import List
 
 #############################
 # CONSTANTS
@@ -26,6 +25,8 @@ SHORT_DIR=DST_DIR.joinpath('shorts')
 LONG_DIR=DST_DIR.joinpath('longs')
 
 DATE_TIME_FORMAT = "%Y-%m-%d-%H-%M-%S"
+# regex that matches timestamps in DATE_TIME_FORMAT
+DATE_TIME_RE = re.compile(r'\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}')
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 log = logging.getLogger(__name__)
@@ -74,6 +75,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--long_keep', type=make_timedelta, default=timedelta(days=28),
                         help='How frequently to retain "long" backups (see the main repo README for details). '
                         'Format is the same as for --backup_freq. Default is 28 days.')
+    parser.add_argument('--db_host', required=True, help='The hostname of the MySQL or MariaDb server')
+    parser.add_argument('--db_user', required=True,
+                        help='The username to use to connect to the MySQL or MariaDb server')
+    parser.add_argument('--db_pass', required=True,
+                        help='The password to use to connect to the MySQL or MariaDb server')
 
     log.info('Parsing command line: %s', sys.argv)
     parsed = parser.parse_args()
@@ -102,34 +108,39 @@ def parse_args() -> argparse.Namespace:
     return parsed
 
 
-def filename2age(now, filename):
-    """Calculcates the age of a file, in seconds from the files name.
+def dirname2age(now: datetime, dirname: str) -> timedelta:
+    """Calculcates the age of a backup directory.
 
     Parameters
     ----------
-    now : datetime object
+    now : datetime
         The time to use as "now" for calculating item's age.
 
-    filename : string, path of file
-        The name of file to calculate age of.
+    dirname : string
+        The name of the backup directory to calculate age of.
     """
-    # Get string representation of archive date
-    date_str = filename.replace('archive', '').replace('.tar.gz', '')
     # Get age from archive-date string
-    return now - datetime.strptime(date_str, DATE_TIME_FORMAT)
+    return now - datetime.strptime(dirname, DATE_TIME_FORMAT)
 
-def get_archive_list(dir):
+def get_backup_list(dir: Path) -> List[Path]:
     """Returns a sorted list of archive files from the specified directory.
 
     Parameters
     ----------
-    dir : string, name of directory
+    dir : Path
         The directory to list.
-    """
-    return sorted(list(filter(lambda x: fnmatch(x, 'archive*.tar.gz'), os.listdir(dir))), reverse=True)
 
-def delete_too_old(dir, now, cutoff):
-    """Deletes everything in the specified directory that is older than the cutoff.
+    Returns
+    -------
+    A list of Path of all the directories that look like backups. Files and directories that don't match the backup
+    directory naming scheme are ignored.
+    """
+    dirs = [x for x in dir.iterdir() if DATE_TIME_RE.fullmatch(x.name) is not None]
+    dirs.sort()
+    return dirs
+
+def delete_too_old(dir: Path, now: datetime, cutoff: timedelta) -> None:
+    """Deletes everything in the specified directory that is equal to or older than the cutoff.
 
     Parameters
     ----------
@@ -142,12 +153,12 @@ def delete_too_old(dir, now, cutoff):
     cutoff : timedelta object
         The age, older than which, we delete the file.
     """
-    archives = get_archive_list(dir)
-    for archive in archives:
-        if filename2age(now, archive) >= cutoff:
+    backups = get_backup_list(dir)
+    for backup in backups:
+        if dirname2age(now, backup.name) >= cutoff:
             # Delete the file
-            log.info('Deleting aged archive - %s', archive)
-            dir.joinpath(archive).unlink()
+            log.info('Deleting aged backup - %s', backup)
+            shutil.rmtree(backup)
 
 def create_tarfile(tar_path: Path, start_dir: Path) -> None:
     """Recursively tars up start_dir and adds all the files in it to the tarball that will be created at tar_path.
@@ -177,6 +188,16 @@ def create_tarfile(tar_path: Path, start_dir: Path) -> None:
     tar.close()
 
 
+def hardlink_files(src_dir: Path, dest_dir: Path) -> None:
+    """Create dest_dir and then hard link all of the files in src_dir into dest_dir."""
+    dest_dir.mkdir(parents=True)
+    for file in src_dir.iterdir():
+        if file.is_dir():
+            log.warning('Found unexpected directory: %s', file)
+        else:
+            os.link(file, dest_dir / file.name)
+
+
 def main():
     """Wakes up every day and makes a backup in the short-term directory. 
     Deletes copies that are older than 7 days old. In the long-term directory, 
@@ -195,8 +216,12 @@ def main():
 
         # Archive the directory
         log.info('Archiving %s', timestamp)
-        tar_filename = SHORT_DIR.joinpath('archive'+timestamp+'.tar.gz')
-        create_tarfile(tar_filename, SRC_DIR)
+        backup_dir = SHORT_DIR / timestamp
+        backup_dir.mkdir(parents=True)
+        log.info('Backing up files')
+        create_tarfile(backup_dir / 'files.tar.gz', SRC_DIR)
+        log.info('Dumping the database')
+        dump_db(args.db_host, args.db_user, args.db_pass)
         log.info('Archive at %s complete', timestamp)
 
         # Delete the archves that are too old
@@ -205,13 +230,16 @@ def main():
         # Archive long-term copy if necessary
         # If there are no long-term copies
         if len(os.listdir(LONG_DIR)) == 0:
-            shutil.copy(tar_filename, LONG_DIR)
+            # Make hard links of the files to save disk space
+            long_backup_dir = LONG_DIR / backup_dir.name
+            hardlink_files(backup_dir, long_backup_dir)
         else:
-            long_archives = get_archive_list(LONG_DIR)
+            long_backups = get_backup_list(LONG_DIR)
             # Update long-term archive if newest one is older than long duration
-            if filename2age(now, long_archives[0]) >= args.long_freq:
-                log.info('Copying %s to longs', tar_filename)
-                shutil.copy(tar_filename, LONG_DIR)
+            if dirname2age(now, long_backups[0].name) >= args.long_freq:
+                log.info('Hard linking %s to longs', backup_dir)
+                long_backup_dir = LONG_DIR / backup_dir.name
+                hardlink_files(backup_dir, long_backup_dir)
                 delete_too_old(LONG_DIR, now, args.long_keep)
 
         log.info('Sleeping for %s == %s seconds', args.backup_freq, args.backup_freq.total_seconds())

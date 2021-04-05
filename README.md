@@ -57,7 +57,12 @@ the `longs` directory. We retain any backups in `long` that are less old than `-
 The sidecar should make a backup immediately after starting and then every `--backup_freq` after that.
 
 If you need to restore your site you can simply `kubectl exec` into the backup container. Since it can see the main
-wordpress volume and the backup volume it can simply use `tar` to extract a backup back into the wordpress volume.
+wordpress volume and the backup volume it can simply use `tar` to extract a backup back into the wordpress volume. In
+the `/dst` directory you will see two sub-directories: `shorts` and `longs`. These hold the short term and long term
+backups respectively (e.g. backups controlled by `--backup_freq` and `--long_freq` respectively). In these directories
+you will see a bunch of other sub-directories, each named with a timestamp indicating when the corresponding backup was
+started. In these directories you will find a tarball holding the filesystem backup and a .gz file holding the
+`mysqldump` output.
 
 ## Redirects
 
