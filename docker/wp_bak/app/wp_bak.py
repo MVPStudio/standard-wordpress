@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 import time
@@ -28,7 +29,8 @@ DATE_TIME_FORMAT = "%Y-%m-%d-%H-%M-%S"
 # regex that matches timestamps in DATE_TIME_FORMAT
 DATE_TIME_RE = re.compile(r'\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}')
 
-logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+logging.basicConfig(level=logging.INFO, stream=sys.stderr,
+                   format='%(asctime)s %(levelname)-8s %(message)s')
 log = logging.getLogger(__name__)
 
 #############################
@@ -197,6 +199,14 @@ def hardlink_files(src_dir: Path, dest_dir: Path) -> None:
         else:
             os.link(file, dest_dir / file.name)
 
+def dump_db(db_host: str, db_user: str, db_pass: str, dest: Path) -> None:
+    """Dump all databases on db_host to file dest."""
+    assert dest.suffix == '.gz'
+    with open(dest.parent / dest.stem, 'wb') as uncompressed_out:
+        subprocess.check_call(
+            ['mysqldump', '-h', db_host, '-u', db_user, '--password=' + db_pass, '--all-databases'],
+            stdout = uncompressed_out)
+        subprocess.check_call(['gzip', dest.parent / dest.stem])
 
 def main():
     """Wakes up every day and makes a backup in the short-term directory. 
@@ -221,7 +231,7 @@ def main():
         log.info('Backing up files')
         create_tarfile(backup_dir / 'files.tar.gz', SRC_DIR)
         log.info('Dumping the database')
-        dump_db(args.db_host, args.db_user, args.db_pass)
+        dump_db(args.db_host, args.db_user, args.db_pass, backup_dir / 'dbdump.sql.gz')
         log.info('Archive at %s complete', timestamp)
 
         # Delete the archves that are too old
@@ -236,7 +246,7 @@ def main():
         else:
             long_backups = get_backup_list(LONG_DIR)
             # Update long-term archive if newest one is older than long duration
-            if dirname2age(now, long_backups[0].name) >= args.long_freq:
+            if dirname2age(now, long_backups[-1].name) >= args.long_freq:
                 log.info('Hard linking %s to longs', backup_dir)
                 long_backup_dir = LONG_DIR / backup_dir.name
                 hardlink_files(backup_dir, long_backup_dir)

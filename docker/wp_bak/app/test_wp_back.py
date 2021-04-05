@@ -65,4 +65,3 @@ class TestWpBack(unittest.TestCase):
                 dir.mkdir()
 
             self.assertEqual(get_backup_list(base_path), backups)
-
