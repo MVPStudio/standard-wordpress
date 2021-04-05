@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+  namespace: "{{ namespace }}"
+spec:
+  selector:
+    app: wordpress
+  ports:
+    - protocol: TCP
+      port: 80
+---
+apiVersion: apps/v1
+# We're not really using any of the stateful set features as we have a single explicit PersistentVolume and volume claim
+# for it but we _could_ set up a sharded thing with replicated data, etc. so a StatefulSet still seems reasonable.
+# Currently though this could just as easily become a Deployment.
+kind: StatefulSet
+metadata:
+  name: wordpress
+  namespace: "{{ namespace }}"
+  labels:
+    app: wordpress
+spec:
+  serviceName: wordpress
+  selector:
+    matchLabels:
+      app: wordpress
+  # WARNING: Do no increase the replica count as there is only 1 persistent volume. If you have multiple replicas
+  # sharing the same volume you will almost certainly eventually get corrupted data!
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+      - name: wordpress
+        image: mvpstudio/standard-wordpress:v005
+        resources:
+          limits:
+            cpu: 0.5
+            memory: 1Gi
+          requests:
+            cpu: 0.5
+            memory: 1Gi
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: mariadb:3306
+        - name: WORDPRESS_DB_USER
+          value: wordpress
+        - name: WORDPRESS_DB_NAME
+          value: wordpress
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                name: mdbsecrets
+                key: user-password
+        - name: WP_ADMIN_USER
+          value: admin
+        - name: WP_ADMIN_PASS
+          valueFrom:
+              secretKeyRef:
+                name: wpsecrets
+                key: admin-password
+        - name: WP_ADMIN_EMAIL
+          value: changeme@mvpstudio.org
+        - name: WP_TITLE
+          value: "{{{ site-title }}}"
+        - name: SITE_URL
+          value: "{{{ site-url }}}"
+        ports:
+        - containerPort: 80
+          name: wordpress
+        volumeMounts:
+          - name: wp-data
+            mountPath: /var/www/html
+      volumes:
+       - name: wp-data
+         persistentVolumeClaim:
+            claimName: wordpress-volume-claim

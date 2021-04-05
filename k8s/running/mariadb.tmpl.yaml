@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mariadb
-  namespace: {{ namespace }}
+  namespace: "{{ namespace }}"
   labels:
     app: mariadb
 spec:
@@ -16,7 +16,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mariadb
-  namespace: {{ namespace }}
+  namespace: "{{ namespace }}"
 spec:
   serviceName: mariadb
   selector:
@@ -43,7 +43,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: mdbsecrets
-                  key: password
+                  key: root-password
             - name: MYSQL_DATABASE
               value: wordpress
             - name: MYSQL_USER
