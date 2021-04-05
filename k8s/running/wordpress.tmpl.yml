@@ -77,7 +77,7 @@ spec:
           - name: wp-data
             mountPath: /var/www/html
       - name: wordpress-backup
-        image: mvpstudio/wordpress-backup:v017
+        image: mvpstudio/wordpress-backup:v020
         resources:
            limits:
               cpu: 0.1
@@ -90,6 +90,10 @@ spec:
            - "--short_keep=7d"
            - "--long_freq=7d"
            - "--long_keep=28d"
+        securityContext:
+           # www-data is what WordPress runs as and that is userid 33 in the WordPress container so our
+           # sidecar needs to run as the same user so it can access any files written by WordPress.
+           runAsUser: 33
         volumeMounts:
            - name: wp-data
              mountPath: /src
