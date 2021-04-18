@@ -36,6 +36,13 @@ the `maintenance` subdirectory of `--out` so that you can launch such tools if y
 The `setup-script.py` script shells out to `kubectl` to apply the generated files unless you pass `--dry_run` to the
 script. Thus `kubectl` will need to be in your `$PATH`.
 
+## www Prefix and HTTP Redirects
+
+The setup here assumes that your URL will _not_ have a `www.` prefix. It automatically sets up a redirect from `www.{{
+hostname }}` to `{{ hostname }}` for you. For example, if you passed `--hostname=foo.com` then traffic to
+`https://foo.com` would work as expected. Furthermore, traffic to `https://www.foo.com` would get redirected to
+`http://foo.com` and any `http` traffic would be redirected to `https`.
+
 ## Backups
 
 The standard setup also includes automatic backups. Specifically, we have a "Kubernetes sidecar" that copies all the
