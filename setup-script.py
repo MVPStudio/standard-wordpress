@@ -168,10 +168,10 @@ def generate_manifests(template_vars: Dict[str, str], dest: Path) -> None:
             if file_or_dir.is_dir():
                 to_explore.append(file_or_dir)
             else:
-                dest_file = dest / file_or_dir.relative_to(K8_DIR)
+                dest_file = dest / file_or_dir.absolute().relative_to(K8_DIR.absolute())
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 if str(file_or_dir).endswith(TEMPLATE_SUFFIX):
-                    dest_file = dest_file.parent / (str(dest_file)[:-len(TEMPLATE_SUFFIX)] + '.yml')
+                    dest_file = dest_file.parent / (dest_file.name[:-len(TEMPLATE_SUFFIX)] + '.yml')
                     log.info('Expanding template %s to %s', file_or_dir, dest_file)
                     with open(file_or_dir, 'rt', encoding='utf-8') as inf:
                         contents = inf.read()
