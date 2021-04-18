@@ -37,3 +37,28 @@ spec:
   hostname: "{{{ hostname }}}"
   acmeProvider:
     email: "mvpstudiooregon+{{{ project-name }}}@gmail.com"
+
+# In the following we set up a host and TLS termination for the www-prefixed variant of the URL but we then set up a
+# mapping to redirect the www-prefix to the non-prefix. Note that the 2nd host entry with the TLS cert is required
+# otherwise the HTTP headers are encrypted and you can see the Host field to do any routing.
+---
+apiVersion: getambassador.io/v2
+kind: Mapping
+metadata:
+  name: "www-{{{ project-name }}}"
+  namespace: ambassador-edge
+spec:
+  host: "www.{{{ hostname }}}"
+  prefix: /
+  service: "{{{ hostname }}}"
+  host_redirect: true
+---
+apiVersion: getambassador.io/v2
+kind: Host
+metadata:
+  name: "www-{{{ project-name }}}"
+  namespace: ambassador-edge
+spec:
+  hostname: "www.{{{ hostname }}}"
+  acmeProvider:
+    email: "mvpstudiooregon+{{{ project-name }}}-www@gmail.com"
