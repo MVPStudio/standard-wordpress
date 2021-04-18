@@ -1,0 +1,14 @@
+root@wordpress-0:/var/www/html# vim wp-includes/functions.php 
+root@wordpress-0:/var/www/html# cat functions.patch 
+--- wp-includes/functions.php   2021-04-14 22:35:32.882229489 +0000
++++ /tmp/functions.php  2021-04-14 22:35:24.010708900 +0000
+@@ -7866,3 +7866,8 @@
+ function wp_fuzzy_number_match( $expected, $actual, $precision = 1 ) {
+        return abs( (float) $expected - (float) $actual ) <= $precision;
+ }
++
++function use_gd_editor($array) {
++ return array( 'WP_Image_Editor_GD', );
++}
++add_filter( 'wp_image_editors', 'use_gd_editor' );
+

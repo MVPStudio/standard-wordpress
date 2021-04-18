@@ -55,7 +55,14 @@ then
    # Note we don't run as root or we could end up copying files and things we can't read or manage.
    sudo -u www-data -- php /usr/local/bin/wp-cli.phar plugin install wordfence --activate
    echo "Done installing wordfence."
+
+   # And now, to work around image upload issues (e.g. see
+   # https://www.3ptechies.com/fix-post-processing-of-the-image-failed.html) we have to add this to functions.php
+   echo "Forcing GD editor to work around image upload issues"
+   # Patch file copied into the docker container by Dockerfile
+   patch /var/www/html/wp-includes/functions.php /tmp/functions.patch
 fi
+
 
 
 apache2-foreground
